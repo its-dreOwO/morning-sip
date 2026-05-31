@@ -1,4 +1,4 @@
-import GridLayout, { type Layout } from "react-grid-layout";
+import GridLayout, { type Layout, type LayoutItem } from "react-grid-layout";
 import { registry } from "../widgets/registry";
 import { useLocalStorage } from "../lib/useLocalStorage";
 import { WidgetHost } from "./WidgetHost";
@@ -7,7 +7,7 @@ const COLS = 6;
 const ROW_HEIGHT = 90;
 const WIDTH = 1080;
 
-export function defaultLayout(): Layout[] {
+export function defaultLayout(): LayoutItem[] {
   let x = 0;
   let y = 0;
   return registry.map((w) => {
@@ -15,7 +15,7 @@ export function defaultLayout(): Layout[] {
       x = 0;
       y += w.defaultSize.h;
     }
-    const item: Layout = {
+    const item: LayoutItem = {
       i: w.id,
       x,
       y,
@@ -30,7 +30,7 @@ export function defaultLayout(): Layout[] {
 }
 
 export function DashboardGrid() {
-  const [layout, setLayout] = useLocalStorage<Layout[]>("dashboard.layout", defaultLayout());
+  const [layout, setLayout] = useLocalStorage<LayoutItem[]>("dashboard.layout", defaultLayout());
   const visible = registry.filter((w) => layout.some((l) => l.i === w.id));
 
   return (
@@ -40,7 +40,7 @@ export function DashboardGrid() {
       cols={COLS}
       rowHeight={ROW_HEIGHT}
       width={WIDTH}
-      onLayoutChange={(l) => setLayout(l)}
+      onLayoutChange={(l: Layout) => setLayout([...l])}
       draggableHandle=".drag-handle"
     >
       {visible.map((w) => (
