@@ -4,6 +4,7 @@ import { WeatherView, useWeatherData } from "./Weather/WeatherWidget";
 import { TodosView, useTodosData } from "./Todos/TodosWidget";
 import { GitHubView, useGitHubData } from "./GitHub/GitHubWidget";
 import { CalendarView, useCalendarData } from "./Calendar/CalendarWidget";
+import { MailView, useMailData } from "./Mail/MailWidget";
 
 export const registry: WidgetDefinition[] = [
   defineWidget({
@@ -50,5 +51,14 @@ export const registry: WidgetDefinition[] = [
     minSize: { w: 2, h: 2 },
     Component: CalendarView,
     useData: useCalendarData,
+  }),
+  defineWidget({
+    id: "mail",
+    name: "Mail",
+    accent: "coral",
+    defaultSize: { w: 2, h: 2 },
+    minSize: { w: 2, h: 2 },
+    Component: MailView,
+    useData: useMailData,
   }),
 ];
