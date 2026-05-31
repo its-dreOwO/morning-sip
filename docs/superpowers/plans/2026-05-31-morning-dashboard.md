@@ -1680,6 +1680,27 @@ git add -A && git commit -m "test: verify all widgets render and persist" --allo
 
 ---
 
+### Task 2.8: GitHub contributions heatmap (added 2026-05-31, user request)
+
+> Full-year contribution calendar (the green-squares board) shown in the GitHub widget's **expanded** state. Data comes from GitHub GraphQL `contributionsCollection.contributionCalendar`, which needs auth — so the token is kept **server-side** in a Vite dev-server proxy (NOT a `VITE_`-prefixed var, which would leak into the client bundle). Username: `its-dreOwO`.
+
+**Files:**
+- Modify: `vite.config.ts` (add a dev-server middleware plugin for `/api/contributions`)
+- Create: `.env.example` (documents `GITHUB_TOKEN=`)
+- Create: `src/data/sources/contributionsSource.ts` + test
+- Create: `src/components/ContributionHeatmap.tsx` + test
+- Modify: `src/widgets/GitHub/GitHubWidget.tsx` (render heatmap when `expanded`; set username)
+- Modify: `.gitignore` already ignores `.env` (done)
+
+**Approach:**
+1. **Dev proxy:** a Vite plugin with `configureServer` registering middleware for `/api/contributions`. Reads `GITHUB_TOKEN` via `loadEnv`, POSTs to `https://api.github.com/graphql` with the `contributionsCollection(from,to){ contributionCalendar { totalContributions weeks { contributionDays { date contributionCount contributionLevel } } } }` query for `its-dreOwO`, returns the calendar JSON. Friendly 500 if token missing.
+2. **Source:** `fetchContributions(): Promise<ContributionData>` calls `/api/contributions`, maps to `{ totalContributions, weeks: { date: string; count: number; level: 0|1|2|3|4 }[][] }` (GraphQL levels NONE/FIRST_QUARTILE/… → 0–4). Throws friendly errors.
+3. **Component:** `ContributionHeatmap({ weeks, total })` — week columns × 7 weekday rows of rounded cells colored by level (theme greens, `accent-green` family), month labels across the top, "Less → More" legend. Pure/prop-driven; unit-tested with a small fixture.
+4. **Wire:** `GitHubView` keeps the sparkline when `!expanded`; when `expanded`, render `ContributionHeatmap`. Add a `useContributionsData()` hook (loading→ready/error) — only fetched when needed. Set `GITHUB_USER = "its-dreOwO"`.
+5. Verify with `npm run build` + vitest. Manual expand verification deferred to Task 3.3 (ExpandOverlay). Commit (stage only the touched files).
+
+---
+
 ## Phase 3 — Animation, dynamic states, add/remove
 
 ### Task 3.1: AnimatedNumber count-up
