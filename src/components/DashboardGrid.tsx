@@ -37,11 +37,10 @@ export function DashboardGrid() {
     <GridLayout
       className="layout"
       layout={layout}
-      cols={COLS}
-      rowHeight={ROW_HEIGHT}
       width={WIDTH}
+      gridConfig={{ cols: COLS, rowHeight: ROW_HEIGHT }}
+      dragConfig={{ handle: ".drag-handle" }}
       onLayoutChange={(l: Layout) => setLayout([...l])}
-      draggableHandle=".drag-handle"
     >
       {visible.map((w) => (
         <div key={w.id}>
