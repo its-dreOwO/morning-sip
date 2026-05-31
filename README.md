@@ -75,6 +75,7 @@ cp .env.example .env
 
 The project is built with a **subagent-driven, test-first** workflow against the plan doc.
 
+0. The Claude Code skills this project is built with are vendored in **`skills/`** (workflow + design/animation) — see `skills/README.md` to install them in a fresh session.
 1. Read `CLAUDE.md` (conventions, the RGL v2 + `npm run build` gotchas) and the plan: `docs/superpowers/plans/2026-05-31-morning-dashboard.md`.
 2. The plan lists every task with full TDD steps. Pick up at the first unchecked task (currently **Task 2.5 Mail**), then 2.6, 2.8, and Phase 3.
 3. Each task: write the failing test → implement → `npm run build` + `npx vitest run` green → commit (stage only the task's files; `dist/`, `node_modules/`, `.env` are gitignored).
