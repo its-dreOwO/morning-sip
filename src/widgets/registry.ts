@@ -5,6 +5,7 @@ import { TodosView, useTodosData } from "./Todos/TodosWidget";
 import { GitHubView, useGitHubData } from "./GitHub/GitHubWidget";
 import { CalendarView, useCalendarData } from "./Calendar/CalendarWidget";
 import { MailView, useMailData } from "./Mail/MailWidget";
+import { GcpView, useGcpData } from "./GCP/GcpWidget";
 
 export const registry: WidgetDefinition[] = [
   defineWidget({
@@ -60,5 +61,14 @@ export const registry: WidgetDefinition[] = [
     minSize: { w: 2, h: 2 },
     Component: MailView,
     useData: useMailData,
+  }),
+  defineWidget({
+    id: "gcp",
+    name: "GCP",
+    accent: "teal",
+    defaultSize: { w: 2, h: 2 },
+    minSize: { w: 2, h: 2 },
+    Component: GcpView,
+    useData: useGcpData,
   }),
 ];
