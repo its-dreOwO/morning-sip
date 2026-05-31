@@ -28,9 +28,11 @@ Everything is built around a **widget contract** so widgets can be developed ind
 - **`src/widgets/types.ts`** — `WidgetDefinition<TData>` (id, name, accent, defaultSize, minSize, `Component`, `useData`) and the `defineWidget<TData>()` helper. **Always register via `defineWidget({...})`, never with `as` casts** — it infers `TData` to force `Component` and `useData` to agree, then type-erases for the registry array. This is the only place erasure happens.
 - **`src/widgets/registry.ts`** — the array of all widgets. Adding a widget = add one `defineWidget(...)` entry here; the grid, host, and layout reconciliation pick it up automatically. The registry is the sole coupling point.
 - **Per-widget folder** (`src/widgets/<Name>/`) — exports a `<Name>View` component (`WidgetViewProps<TData>`) and a `use<Name>Data()` hook. Live-vs-mock data is hidden behind a source module in `src/data/sources/`.
-- **`src/components/WidgetHost.tsx`** — renders a widget purely from its `def`: calls `def.useData()`, wraps in `WidgetFrame`, passes data/state to `def.Component`.
+- **`src/components/WidgetHost.tsx`** — renders a widget purely from its `def`: calls `def.useData()`, wraps in `WidgetFrame`, passes data/state to `def.Component`, and reports the widget state/data to `DashboardDataContext`.
 - **`src/components/WidgetFrame.tsx`** — card chrome + accent color; renders skeleton/error/empty/children based on `state`.
 - **`src/components/DashboardGrid.tsx`** — hosts the grid, persists layout to `localStorage` (`dashboard.layout`). `defaultLayout()`, `reconcileLayout(stored)` (drops orphaned ids, appends registry widgets the stored layout lacks — keeps persisted layout in sync as the registry grows), `sameLayout()`.
+- **`src/context/DashboardDataContext.tsx`** — central state context provider that collects live/ready data and states from all visible widgets to feed to LUMIX.
+- **`src/components/AiBriefingCard.tsx`** / **`src/components/CopilotSidebar.tsx`** — LUMIX AI interface. BriefingCard displays the morning briefing summary next to the greeting (with API key setup). CopilotSidebar slides open as a drawer to chat about dashboard metrics using OpenRouter and model `deepseek/deepseek-v4-flash`.
 
 ### react-grid-layout is v2 (not v1)
 

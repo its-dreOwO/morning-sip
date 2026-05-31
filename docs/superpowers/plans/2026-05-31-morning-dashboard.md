@@ -2052,6 +2052,815 @@ git add -A && git commit -m "docs: add README with setup and widget-authoring gu
 
 ---
 
+## Phase 4 — LUMIX AI Copilot
+
+### Task 4.1: Centralize Widget Data (`DashboardDataContext`)
+
+**Files:**
+- Create: `src/context/DashboardDataContext.tsx`
+- Test: `src/context/DashboardDataContext.test.tsx`
+- Modify: `src/components/WidgetHost.tsx`
+- Modify: `src/App.tsx`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `src/context/DashboardDataContext.test.tsx`:
+```tsx
+import { describe, it, expect } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { useContext } from "react";
+import { DashboardDataProvider, DashboardDataContext } from "./DashboardDataContext";
+
+function TestConsumer() {
+  const ctx = useContext(DashboardDataContext);
+  if (!ctx) return null;
+  return (
+    <div>
+      <div data-testid="data-length">{Object.keys(ctx.widgetsData).length}</div>
+      <button
+        onClick={() => ctx.updateWidgetData("test-id", "Test Widget", "ready", { foo: "bar" })}
+      >
+        Update
+      </button>
+      <div data-testid="widget-val">{ctx.widgetsData["test-id"]?.data?.foo}</div>
+    </div>
+  );
+}
+
+describe("DashboardDataContext", () => {
+  it("manages and updates widget state correctly", () => {
+    render(
+      <DashboardDataProvider>
+        <TestConsumer />
+      </DashboardDataProvider>
+    );
+    expect(screen.getByTestId("data-length")).toHaveTextContent("0");
+    screen.getByText("Update").click();
+    expect(screen.getByTestId("data-length")).toHaveTextContent("1");
+    expect(screen.getByTestId("widget-val")).toHaveTextContent("bar");
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx vitest run src/context/DashboardDataContext.test.tsx`
+Expected: FAIL (files do not exist yet)
+
+- [ ] **Step 3: Write minimal implementation**
+
+Create `src/context/DashboardDataContext.tsx`:
+```tsx
+import React, { createContext, useContext, useState, useCallback } from "react";
+
+export interface WidgetDataState {
+  id: string;
+  name: string;
+  state: "loading" | "ready" | "empty" | "error";
+  data: any;
+  error?: string;
+}
+
+interface DashboardDataContextType {
+  widgetsData: Record<string, WidgetDataState>;
+  updateWidgetData: (id: string, name: string, state: WidgetDataState["state"], data: any, error?: string) => void;
+}
+
+export const DashboardDataContext = createContext<DashboardDataContextType | null>(null);
+
+export function DashboardDataProvider({ children }: { children: React.ReactNode }) {
+  const [widgetsData, setWidgetsData] = useState<Record<string, WidgetDataState>>({});
+
+  const updateWidgetData = useCallback(
+    (id: string, name: string, state: WidgetDataState["state"], data: any, error?: string) => {
+      setWidgetsData((prev) => {
+        const existing = prev[id];
+        if (
+          existing &&
+          existing.state === state &&
+          existing.data === data &&
+          existing.error === error
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [id]: { id, name, state, data, error },
+        };
+      });
+    },
+    []
+  );
+
+  return (
+    <DashboardDataContext.Provider value={{ widgetsData, updateWidgetData }}>
+      {children}
+    </DashboardDataContext.Provider>
+  );
+}
+
+export function useDashboardData() {
+  const context = useContext(DashboardDataContext);
+  if (!context) {
+    throw new Error("useDashboardData must be used within a DashboardDataProvider");
+  }
+  return context;
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `npx vitest run src/context/DashboardDataContext.test.tsx`
+Expected: PASS
+
+- [ ] **Step 5: Wire into WidgetHost and App**
+
+Modify `src/components/WidgetHost.tsx` to update context on render:
+```tsx
+import { useEffect } from "react";
+import type { WidgetDefinition } from "../widgets/types";
+import { WidgetFrame } from "./WidgetFrame";
+import { useDashboardData } from "../context/DashboardDataContext";
+
+export function WidgetHost({ def }: { def: WidgetDefinition }) {
+  const result = def.useData();
+  const Component = def.Component;
+  const { updateWidgetData } = useDashboardData();
+
+  useEffect(() => {
+    updateWidgetData(def.id, def.name, result.state, result.data, result.error);
+  }, [def.id, def.name, result.state, result.data, result.error, updateWidgetData]);
+
+  return (
+    <WidgetFrame title={def.name} accent={def.accent} state={result.state} error={result.error}>
+      <Component data={result.data} state={result.state} expanded={false} />
+    </WidgetFrame>
+  );
+}
+```
+
+Modify `src/App.tsx` to wrap main layout inside `DashboardDataProvider`:
+```tsx
+import { DashboardGrid } from "./components/DashboardGrid";
+import { DashboardDataProvider } from "./context/DashboardDataContext";
+
+export default function App() {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  return (
+    <DashboardDataProvider>
+      <main className="mx-auto max-w-[1120px] p-6">
+        <header className="mb-6">
+          <h1 className="text-2xl font-semibold text-text-bright">{greeting}, Dre</h1>
+          <p className="text-sm text-text-muted">
+            {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+          </p>
+        </header>
+        <DashboardGrid />
+      </main>
+    </DashboardDataProvider>
+  );
+}
+```
+
+- [ ] **Step 6: Run affected tests and commit**
+
+Run: `npm test`
+Expected: all tests pass.
+```bash
+git add src/context/DashboardDataContext.tsx src/context/DashboardDataContext.test.tsx src/components/WidgetHost.tsx src/App.tsx
+git commit -m "feat: centralize widget data reporting via DashboardDataContext"
+```
+
+---
+
+### Task 4.2: OpenRouter API Integration Client (`src/lib/openrouter.ts`)
+
+**Files:**
+- Create: `src/lib/openrouter.ts`
+- Test: `src/lib/openrouter.test.ts`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `src/lib/openrouter.test.ts`:
+```typescript
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { fetchLUMIXBriefing, askLUMIX } from "./openrouter";
+
+describe("openrouter client", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  it("sends request with system prompt & custom model", async () => {
+    const mockFetch = vi.mocked(fetch);
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "Good morning! It's clear outside." } }],
+      }),
+    } as any);
+
+    const result = await fetchLUMIXBriefing("key-123", { weather: { id: "weather", name: "Weather", state: "ready", data: { temp: 18 } } });
+    expect(result).toBe("Good morning! It's clear outside.");
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://openrouter.ai/api/v1/chat/completions",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer key-123",
+        }),
+      })
+    );
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx vitest run src/lib/openrouter.test.ts`
+Expected: FAIL (files do not exist yet)
+
+- [ ] **Step 3: Write implementation**
+
+Create `src/lib/openrouter.ts`:
+```typescript
+export interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
+export async function callOpenRouter(apiKey: string, messages: ChatMessage[]): Promise<string> {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "http://localhost:5173",
+      "X-Title": "Morning Dashboard",
+    },
+    body: JSON.stringify({
+      model: "deepseek/deepseek-v4-flash",
+      messages,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenRouter API error: ${response.statusText} (${response.status})`);
+  }
+
+  const result = await response.json();
+  const content = result.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Invalid response format from OpenRouter");
+  return content;
+}
+
+export async function fetchLUMIXBriefing(apiKey: string, widgetsData: Record<string, any>): Promise<string> {
+  const systemPrompt = `You are LUMIX, the user's personal morning AI assistant. You are helping them analyze their dashboard.
+Here is the current real-time data displayed on their dashboard widgets:
+${JSON.stringify(widgetsData, null, 2)}
+
+Provide a warm, super-concise daily briefing (2-3 sentences max). Highlight critical items like weather warnings, calendar events, or system alerts.`;
+
+  return callOpenRouter(apiKey, [{ role: "system", content: systemPrompt }]);
+}
+
+export async function askLUMIX(apiKey: string, widgetsData: Record<string, any>, chatHistory: ChatMessage[]): Promise<string> {
+  const systemPrompt = `You are LUMIX, the user's personal morning AI assistant. You are helping them analyze their dashboard.
+Here is the current real-time data displayed on their dashboard widgets:
+${JSON.stringify(widgetsData, null, 2)}
+
+Provide helpful, context-aware answers based on this data. If the user asks something outside the dashboard context, reply politely and bring the focus back. Keep answers brief and conversational.`;
+
+  return callOpenRouter(apiKey, [
+    { role: "system", content: systemPrompt },
+    ...chatHistory,
+  ]);
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `npx vitest run src/lib/openrouter.test.ts`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/lib/openrouter.ts src/lib/openrouter.test.ts
+git commit -m "feat: implement openrouter API client for LUMIX briefings and chats"
+```
+
+---
+
+### Task 4.3: Briefing & API Setup Card (`AiBriefingCard`)
+
+**Files:**
+- Create: `src/components/AiBriefingCard.tsx`
+- Test: `src/components/AiBriefingCard.test.tsx`
+- Modify: `src/App.tsx`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `src/components/AiBriefingCard.test.tsx`:
+```tsx
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { AiBriefingCard } from "./AiBriefingCard";
+import { DashboardDataProvider } from "../context/DashboardDataContext";
+
+describe("AiBriefingCard", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  it("shows API key configuration input when key is missing", () => {
+    render(
+      <DashboardDataProvider>
+        <AiBriefingCard onOpenChat={() => {}} />
+      </DashboardDataProvider>
+    );
+    expect(screen.getByPlaceholderText(/Enter OpenRouter API Key/i)).toBeInTheDocument();
+  });
+
+  it("renders loading and then briefing once key is saved", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "LUMIX morning summary here." } }],
+      }),
+    } as any);
+
+    render(
+      <DashboardDataProvider>
+        <AiBriefingCard onOpenChat={() => {}} />
+      </DashboardDataProvider>
+    );
+
+    const input = screen.getByPlaceholderText(/Enter OpenRouter API Key/i);
+    fireEvent.change(input, { target: { value: "test-api-key" } });
+    fireEvent.click(screen.getByText(/Save/i));
+
+    await waitFor(() => {
+      expect(screen.getByText("LUMIX morning summary here.")).toBeInTheDocument();
+    });
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx vitest run src/components/AiBriefingCard.test.tsx`
+Expected: FAIL (files do not exist yet)
+
+- [ ] **Step 3: Write implementation**
+
+Create `src/components/AiBriefingCard.tsx`:
+```tsx
+import { useState, useEffect } from "react";
+import { useDashboardData } from "../context/DashboardDataContext";
+import { fetchLUMIXBriefing } from "../lib/openrouter";
+
+interface Props {
+  onOpenChat: (initialMsg?: string) => void;
+}
+
+export function AiBriefingCard({ onOpenChat }: Props) {
+  const { widgetsData } = useDashboardData();
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem("dashboard.openrouter_api_key") || "");
+  const [keyInput, setKeyInput] = useState("");
+  const [briefing, setBriefing] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [quickInput, setQuickInput] = useState("");
+
+  useEffect(() => {
+    if (!apiKey) return;
+
+    let active = true;
+    const loadBriefing = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const text = await fetchLUMIXBriefing(apiKey, widgetsData);
+        if (active) setBriefing(text);
+      } catch (err: any) {
+        if (active) setError(err.message || "Failed to load briefing");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadBriefing();
+    return () => { active = false; };
+  }, [apiKey, widgetsData]);
+
+  const handleSaveKey = () => {
+    if (!keyInput.trim()) return;
+    localStorage.setItem("dashboard.openrouter_api_key", keyInput.trim());
+    setApiKey(keyInput.trim());
+  };
+
+  const handleClearKey = () => {
+    localStorage.removeItem("dashboard.openrouter_api_key");
+    setApiKey("");
+    setBriefing("");
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && quickInput.trim()) {
+      onOpenChat(quickInput);
+      setQuickInput("");
+    }
+  };
+
+  if (!apiKey) {
+    return (
+      <div className="bg-card-surface border border-white/10 backdrop-blur p-4 rounded-xl max-w-sm w-full">
+        <h4 className="text-xs font-semibold text-text-bright uppercase tracking-wider mb-2">✨ LUMIX Briefing Setup</h4>
+        <p className="text-xs text-text-muted mb-3">Provide your OpenRouter API key to activate LUMIX briefings.</p>
+        <div className="flex gap-2">
+          <input
+            type="password"
+            placeholder="Enter OpenRouter API Key"
+            value={keyInput}
+            onChange={(e) => setKeyInput(e.target.value)}
+            className="flex-1 bg-black/20 border border-white/10 rounded px-2 py-1 text-xs text-text-bright focus:outline-none focus:border-accent-amber/50"
+          />
+          <button
+            onClick={handleSaveKey}
+            className="bg-accent-amber text-bg-deep font-semibold text-xs px-3 py-1 rounded hover:bg-accent-amber/90 transition-colors"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card-surface border border-white/10 backdrop-blur p-4 rounded-xl max-w-md w-full flex flex-col justify-between min-h-[120px] transition-all duration-300">
+      <div>
+        <div className="flex justify-between items-center mb-1">
+          <h4 className="text-xs font-semibold text-accent-amber uppercase tracking-wider flex items-center gap-1">
+            <span>✨</span> LUMIX Briefing
+          </h4>
+          <button onClick={handleClearKey} className="text-[10px] text-text-muted hover:text-text-bright hover:underline">
+            Disconnect
+          </button>
+        </div>
+        {loading ? (
+          <div className="space-y-2 py-2" data-testid="briefing-skeleton">
+            <div className="h-3 bg-white/5 rounded animate-pulse w-full"></div>
+            <div className="h-3 bg-white/5 rounded animate-pulse w-5/6"></div>
+          </div>
+        ) : error ? (
+          <p className="text-xs text-coral font-medium py-1">⚠️ {error}</p>
+        ) : (
+          <p className="text-xs text-text-muted leading-relaxed py-1">{briefing || "Waiting for dashboard widgets to finish loading..."}</p>
+        )}
+      </div>
+
+      <div className="mt-3 flex gap-2 border-t border-white/5 pt-2">
+        <input
+          type="text"
+          placeholder="Ask LUMIX anything about today..."
+          value={quickInput}
+          onChange={(e) => setQuickInput(e.target.value)}
+          onKeyDown={handleKeyPress}
+          className="flex-grow bg-black/20 border border-white/10 rounded px-2.5 py-1.5 text-xs text-text-bright placeholder-text-muted/65 focus:outline-none focus:border-accent-amber/50"
+        />
+        <button
+          onClick={() => {
+            onOpenChat(quickInput);
+            setQuickInput("");
+          }}
+          className="bg-accent-amber/15 hover:bg-accent-amber/25 border border-accent-amber/30 text-accent-amber font-semibold text-xs px-3 py-1 rounded transition-colors"
+        >
+          Chat
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `npx vitest run src/components/AiBriefingCard.test.tsx`
+Expected: PASS
+
+- [ ] **Step 5: Wire into App**
+
+Modify `src/App.tsx`:
+```tsx
+import { useState } from "react";
+import { DashboardGrid } from "./components/DashboardGrid";
+import { DashboardDataProvider } from "./context/DashboardDataContext";
+import { AiBriefingCard } from "./components/AiBriefingCard";
+import { CopilotSidebar } from "./components/CopilotSidebar";
+
+export default function App() {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [initialPrompt, setInitialPrompt] = useState("");
+
+  const handleOpenChat = (prompt?: string) => {
+    if (prompt) setInitialPrompt(prompt);
+    setSidebarOpen(true);
+  };
+
+  return (
+    <DashboardDataProvider>
+      <div className="relative min-h-screen overflow-x-hidden">
+        <main className="mx-auto max-w-[1120px] p-6">
+          <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold text-text-bright">{greeting}, Dre</h1>
+              <p className="text-sm text-text-muted">
+                {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+              </p>
+            </div>
+            <AiBriefingCard onOpenChat={handleOpenChat} />
+          </header>
+          <DashboardGrid />
+        </main>
+        <CopilotSidebar
+          isOpen={sidebarOpen}
+          initialPrompt={initialPrompt}
+          onClose={() => {
+            setSidebarOpen(false);
+            setInitialPrompt("");
+          }}
+        />
+      </div>
+    </DashboardDataProvider>
+  );
+}
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/components/AiBriefingCard.tsx src/components/AiBriefingCard.test.tsx src/App.tsx
+git commit -m "feat: add glassmorphic AiBriefingCard next to greeting in header"
+```
+
+---
+
+### Task 4.4: Copilot Sidebar Conversation Drawer (`CopilotSidebar`)
+
+**Files:**
+- Create: `src/components/CopilotSidebar.tsx`
+- Test: `src/components/CopilotSidebar.test.tsx`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `src/components/CopilotSidebar.test.tsx`:
+```tsx
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { CopilotSidebar } from "./CopilotSidebar";
+import { DashboardDataProvider } from "../context/DashboardDataContext";
+
+describe("CopilotSidebar", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  it("does not render when isOpen is false", () => {
+    const { container } = render(
+      <DashboardDataProvider>
+        <CopilotSidebar isOpen={false} initialPrompt="" onClose={() => {}} />
+      </DashboardDataProvider>
+    );
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("renders conversation flow and appends messages", async () => {
+    localStorage.setItem("dashboard.openrouter_api_key", "test-key");
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "I can help with Weather data." } }],
+      }),
+    } as any);
+
+    render(
+      <DashboardDataProvider>
+        <CopilotSidebar isOpen={true} initialPrompt="How is the weather?" onClose={() => {}} />
+      </DashboardDataProvider>
+    );
+
+    expect(screen.getByText("How is the weather?")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("I can help with Weather data.")).toBeInTheDocument();
+    });
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx vitest run src/components/CopilotSidebar.test.tsx`
+Expected: FAIL (files do not exist yet)
+
+- [ ] **Step 3: Write implementation**
+
+Create `src/components/CopilotSidebar.tsx`:
+```tsx
+import { useState, useEffect, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useDashboardData } from "../context/DashboardDataContext";
+import { askLUMIX, type ChatMessage } from "../lib/openrouter";
+
+interface Props {
+  isOpen: boolean;
+  initialPrompt: string;
+  onClose: () => void;
+}
+
+export function CopilotSidebar({ isOpen, initialPrompt, onClose }: Props) {
+  const { widgetsData } = useDashboardData();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const apiKey = localStorage.getItem("dashboard.openrouter_api_key") || "";
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setMessages([]);
+      setError("");
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && initialPrompt && apiKey) {
+      handleSendMessage(initialPrompt);
+    }
+  }, [isOpen, initialPrompt]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim() || !apiKey || loading) return;
+
+    const userMsg: ChatMessage = { role: "user", content: text.trim() };
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
+    setInput("");
+    setLoading(true);
+    setError("");
+
+    try {
+      const responseText = await askLUMIX(apiKey, widgetsData, nextMessages);
+      setMessages([...nextMessages, { role: "assistant", content: responseText }]);
+    } catch (err: any) {
+      setError(err.message || "Failed to communicate with LUMIX");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSendMessage(input);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.5 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black z-40"
+          />
+
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed right-0 top-0 bottom-0 w-96 bg-bg-deep border-l border-white/10 z-50 flex flex-col shadow-2xl"
+          >
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-bg-raised">
+              <div className="flex items-center gap-2">
+                <span className="text-base">✨</span>
+                <h3 className="text-sm font-semibold text-text-bright">LUMIX Copilot Chat</h3>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-text-muted hover:text-text-bright transition-colors text-sm px-2 py-1 rounded"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="flex-grow p-4 overflow-y-auto space-y-3">
+              {messages.length === 0 && !loading && (
+                <div className="h-full flex flex-col items-center justify-center text-center p-4">
+                  <span className="text-2xl mb-2">👋</span>
+                  <h4 className="text-xs font-semibold text-text-bright mb-1">Hi, I'm LUMIX</h4>
+                  <p className="text-[11px] text-text-muted leading-relaxed">
+                    Ask me questions about your morning dashboard metrics, widgets, or daily schedule!
+                  </p>
+                </div>
+              )}
+
+              {messages.map((m, idx) => (
+                <div
+                  key={idx}
+                  className={`flex flex-col ${
+                    m.role === "user" ? "items-end" : "items-start"
+                  }`}
+                >
+                  <span className="text-[10px] text-text-muted mb-1 px-1">
+                    {m.role === "user" ? "Dre" : "LUMIX"}
+                  </span>
+                  <div
+                    className={`max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed ${
+                      m.role === "user"
+                        ? "bg-accent-amber text-bg-deep font-medium"
+                        : "bg-white/5 border border-white/5 text-text-bright"
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+
+              {loading && (
+                <div className="flex flex-col items-start">
+                  <span className="text-[10px] text-text-muted mb-1 px-1">LUMIX</span>
+                  <div className="bg-white/5 border border-white/5 text-text-bright max-w-[85%] rounded-lg px-3 py-2 text-xs animate-pulse">
+                    Thinking...
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="p-3 bg-coral/10 border border-coral/25 rounded-lg text-xs text-coral font-medium">
+                  ⚠️ {error}
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            <div className="p-4 border-t border-white/10 bg-bg-raised flex gap-2">
+              <input
+                type="text"
+                placeholder="Ask LUMIX..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                className="flex-grow bg-black/20 border border-white/10 rounded px-2.5 py-2 text-xs text-text-bright placeholder-text-muted/65 focus:outline-none focus:border-accent-amber/50"
+                disabled={loading}
+              />
+              <button
+                onClick={() => handleSendMessage(input)}
+                className="bg-accent-amber text-bg-deep font-semibold text-xs px-4 py-2 rounded hover:bg-accent-amber/90 transition-colors disabled:opacity-50"
+                disabled={loading || !input.trim()}
+              >
+                Send
+              </button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `npx vitest run src/components/CopilotSidebar.test.tsx`
+Expected: PASS
+
+- [ ] **Step 5: Run all tests to make sure no regressions**
+
+Run: `npm test`
+Expected: all tests pass.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/components/CopilotSidebar.tsx src/components/CopilotSidebar.test.tsx
+git commit -m "feat: add slide-out CopilotSidebar conversation drawer"
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage:**
@@ -2065,7 +2874,9 @@ git add -A && git commit -m "docs: add README with setup and widget-authoring gu
 - §7 seven data sources (2 live, 3 mock, 2 local) → Phase 1.5–1.6 + Phase 2 ✓
 - §8 testing (contract, registry, sources, persistence, smoke renders) → throughout ✓
 - §9 walking skeleton first → Phase 1 builds Weather end-to-end before fan-out ✓
+- LUMIX AI Copilot & Briefings → Phase 4 (Tasks 4.1–4.4) ✓
 
-**Placeholder scan:** No "TBD"/"handle edge cases"/"similar to" — each task has concrete code. Task 3.4 step 5 references mirroring the expand button pattern but provides the concrete add/remove code; the "×" button mirrors the explicit expand button from Task 3.3 step 5.
+**Placeholder scan:** No "TBD"/"handle edge cases"/"similar to" — each task has concrete code.
 
-**Type consistency:** `WidgetDefinition`, `WidgetDataResult<T>`, `WidgetViewProps<T>`, `WidgetState`, `AccentName` are defined in Tasks 1.1–1.2 and used unchanged everywhere. Each widget exports `<Name>View` + `use<Name>Data`, matching its registry import. Source return types (`WeatherData`, `GitHubData`, `CalendarData`/`CalendarEvent`, `MailData`, `GcpData`, `ClockData`, `TodosData`) are each defined once and imported where used.
+**Type consistency:** All shared types and contract patterns (`WidgetDataResult<T>`, `WidgetViewProps<T>`) are followed exactly. The API integration client utilizes the model `deepseek/deepseek-v4-flash` as specified.
+
