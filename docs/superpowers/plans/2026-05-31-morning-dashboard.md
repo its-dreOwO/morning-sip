@@ -2861,6 +2861,668 @@ git commit -m "feat: add slide-out CopilotSidebar conversation drawer"
 
 ---
 
+---
+
+## Phase 5 — Visual Upgrades
+
+### Task 5.1: Canvas-based Dot Matrix Wave Background (`DotMatrixBackground`)
+
+**Files:**
+- Create: `src/components/DotMatrixBackground.tsx`
+- Test: `src/components/DotMatrixBackground.test.tsx`
+- Modify: `src/App.tsx`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `src/components/DotMatrixBackground.test.tsx`:
+```tsx
+import { describe, it, expect } from "vitest";
+import { render } from "@testing-library/react";
+import { DotMatrixBackground } from "./DotMatrixBackground";
+
+describe("DotMatrixBackground", () => {
+  it("renders a canvas element correctly", () => {
+    const { container } = render(<DotMatrixBackground opacity={0.6} spacing={14} />);
+    const canvas = container.querySelector("canvas");
+    expect(canvas).toBeInTheDocument();
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx vitest run src/components/DotMatrixBackground.test.tsx`
+Expected: FAIL (files do not exist yet)
+
+- [ ] **Step 3: Write minimal implementation**
+
+Create `src/components/DotMatrixBackground.tsx`:
+```tsx
+import { useEffect, useRef } from "react";
+
+interface Props {
+  opacity: number;
+  spacing: number;
+}
+
+export function DotMatrixBackground({ opacity, spacing }: Props) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animationId: number;
+    let count = 0;
+
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize();
+
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cols = Math.floor(canvas.width / spacing) + 1;
+      const rows = Math.floor(canvas.height / spacing) + 1;
+
+      ctx.shadowBlur = 3;
+      ctx.shadowColor = "#ffc879";
+
+      for (let x = 0; x < cols; x++) {
+        for (let y = 0; y < rows; y++) {
+          const originX = x * spacing;
+          const originY = y * spacing;
+
+          const w1 = Math.sin(x * 0.12 + count);
+          const w2 = Math.cos(y * 0.15 - count * 0.75);
+          const w3 = Math.sin((x * 0.08 - y * 0.08) + count * 1.2);
+
+          const combinedWave = (w1 + w2 + w3) / 3;
+          const size = 0.8 + combinedWave * 0.5;
+          const dotOpacity = (0.1 + (combinedWave + 1) * 0.25) * opacity;
+
+          ctx.fillStyle = `rgba(255, 200, 121, ${dotOpacity})`;
+          ctx.beginPath();
+          ctx.arc(originX, originY, size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      count += 0.025;
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      cancelAnimationFrame(animationId);
+    };
+  }, [opacity, spacing]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="fixed inset-0 pointer-events-none -z-10 bg-bg-deep"
+    />
+  );
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `npx vitest run src/components/DotMatrixBackground.test.tsx`
+Expected: PASS
+
+- [ ] **Step 5: Wire into App with controls**
+
+Modify `src/App.tsx` to handle background settings and place `DotMatrixBackground`:
+```tsx
+import { useState } from "react";
+import { DashboardGrid } from "./components/DashboardGrid";
+import { DashboardDataProvider } from "./context/DashboardDataContext";
+import { AiBriefingCard } from "./components/AiBriefingCard";
+import { CopilotSidebar } from "./components/CopilotSidebar";
+import { DotMatrixBackground } from "./components/DotMatrixBackground";
+
+export default function App() {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [initialPrompt, setInitialPrompt] = useState("");
+
+  // Background wave parameters stored in state (default: 0.6 opacity, 14px spacing)
+  const [bgOpacity, setBgOpacity] = useState(0.6);
+  const [bgSpacing, setBgSpacing] = useState(14);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const handleOpenChat = (prompt?: string) => {
+    if (prompt) setInitialPrompt(prompt);
+    setSidebarOpen(true);
+  };
+
+  return (
+    <DashboardDataProvider>
+      <div className="relative min-h-screen overflow-x-hidden">
+        <DotMatrixBackground opacity={bgOpacity} spacing={bgSpacing} />
+        
+        <main className="mx-auto max-w-[1120px] p-6 relative z-10">
+          <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex justify-between items-start w-full md:w-auto">
+              <div>
+                <h1 className="text-2xl font-semibold text-text-bright">{greeting}, Dre</h1>
+                <p className="text-sm text-text-muted">
+                  {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+                </p>
+              </div>
+              
+              {/* Settings Toggle in mobile/desktop header */}
+              <button
+                onClick={() => setSettingsOpen(!settingsOpen)}
+                className="bg-card-surface border border-white/10 hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs text-text-bright ml-4"
+              >
+                ⚙️ Wave Settings
+              </button>
+            </div>
+            
+            <AiBriefingCard onOpenChat={handleOpenChat} />
+          </header>
+
+          {/* Quick Settings Panel */}
+          {settingsOpen && (
+            <div className="mb-6 p-4 bg-card-surface border border-white/10 rounded-xl max-w-md flex flex-col gap-4">
+              <h3 className="text-xs font-semibold text-accent-amber uppercase tracking-wider">⚙️ Background Wave Settings</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] text-text-muted block mb-1">Brightness (Opacity: {bgOpacity})</label>
+                  <input
+                    type="range"
+                    min="0.05"
+                    max="0.8"
+                    step="0.05"
+                    value={bgOpacity}
+                    onChange={(e) => setBgOpacity(parseFloat(e.target.value))}
+                    className="w-full accent-accent-amber"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-text-muted block mb-1">Density (Spacing: {bgSpacing}px)</label>
+                  <input
+                    type="range"
+                    min="10"
+                    max="30"
+                    step="2"
+                    value={bgSpacing}
+                    onChange={(e) => setBgSpacing(parseInt(e.target.value))}
+                    className="w-full accent-accent-amber"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DashboardGrid />
+        </main>
+
+        <CopilotSidebar
+          isOpen={sidebarOpen}
+          initialPrompt={initialPrompt}
+          onClose={() => {
+            setSidebarOpen(false);
+            setInitialPrompt("");
+          }}
+        />
+      </div>
+    </DashboardDataProvider>
+  );
+}
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/components/DotMatrixBackground.tsx src/components/DotMatrixBackground.test.tsx src/App.tsx
+git commit -m "feat: implement DotMatrixBackground canvas wall with settings sliders in App header"
+```
+
+---
+
+### Task 5.2: Widget Header Styles Highlight (`WidgetFrame`)
+
+**Files:**
+- Modify: `src/components/WidgetFrame.tsx`
+- Modify: `src/components/WidgetFrame.test.tsx`
+
+- [ ] **Step 1: Write test for header class changes**
+
+Modify `src/components/WidgetFrame.test.tsx` to assert new header text size and accent colors:
+```tsx
+  it("renders the title in text-base and bold with active accent color", () => {
+    render(<WidgetFrame title="Weather" accent="amber" state="ready">hello</WidgetFrame>);
+    const header = screen.getByText("Weather");
+    expect(header).toHaveClass("text-base", "font-semibold", "text-accent-amber");
+  });
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx vitest run src/components/WidgetFrame.test.tsx`
+Expected: FAIL
+
+- [ ] **Step 3: Update `WidgetFrame.tsx` implementation**
+
+Modify `src/components/WidgetFrame.tsx` to render larger accent headers:
+```tsx
+import type { ReactNode } from "react";
+import type { AccentName, WidgetState } from "../widgets/types";
+import { Skeleton } from "./Skeleton";
+
+const accentClass: Record<AccentName, string> = {
+  amber: "text-accent-amber",
+  teal: "text-accent-teal",
+  coral: "text-accent-coral",
+  violet: "text-accent-violet",
+  green: "text-accent-green",
+};
+
+interface Props {
+  title: string;
+  accent: AccentName;
+  state: WidgetState;
+  error?: string;
+  children: ReactNode;
+}
+
+export function WidgetFrame({ title, accent, state, error, children }: Props) {
+  return (
+    <div className="flex h-full w-full flex-col gap-2 rounded-2xl border border-white/10 bg-card p-4">
+      {/* Enhanced Header with accent coloring, large text, and bottom divider */}
+      <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-1">
+        <span className={`text-base font-semibold tracking-wide ${accentClass[accent]}`}>{title}</span>
+      </div>
+      <div className="flex-1 overflow-auto">
+        {state === "loading" && <Skeleton />}
+        {state === "error" && <p className="text-sm text-accent-coral">{error ?? "Something went wrong"}</p>}
+        {state === "empty" && <p className="text-sm text-text-muted">Nothing here yet.</p>}
+        {state === "ready" && children}
+      </div>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npx vitest run src/components/WidgetFrame.test.tsx`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/components/WidgetFrame.tsx src/components/WidgetFrame.test.tsx
+git commit -m "feat: upgrade WidgetFrame header styles to be larger and highlighted in active accent colors"
+```
+
+---
+
+### Task 5.3: Animated Weather SVG Graphics (`WeatherWidget`)
+
+**Files:**
+- Modify: `src/widgets/Weather/WeatherWidget.tsx`
+- Modify: `src/widgets/Weather/WeatherWidget.test.tsx`
+
+- [ ] **Step 1: Update weather test**
+
+Update `src/widgets/Weather/WeatherWidget.test.tsx` to verify animated graphics render:
+```tsx
+  it("renders weather graphics according to condition state", () => {
+    const mockData = {
+      tempC: 18,
+      condition: "Rainy",
+      high: 21,
+      low: 12,
+      nextHours: [18, 19, 20, 19, 18, 17],
+    };
+    render(<WeatherView data={mockData} state="ready" />);
+    // Rainy drops should exist (e.g. elements with classes drop/rain)
+    expect(screen.getByTestId("weather-anim-rain")).toBeInTheDocument();
+  });
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx vitest run src/widgets/Weather/WeatherWidget.test.tsx`
+Expected: FAIL
+
+- [ ] **Step 3: Implement animated weather condition SVGs**
+
+Modify `src/widgets/Weather/WeatherWidget.tsx`:
+```tsx
+import { useEffect, useState } from "react";
+import type { WidgetViewProps } from "../types";
+import type { WidgetDataResult } from "../../data/types";
+import { fetchWeather, type WeatherData } from "../../data/sources/weatherSource";
+
+const LAT = 51.5072;
+const LON = -0.1276;
+
+function WeatherIcon({ condition }: { condition: string }) {
+  const norm = condition.toLowerCase();
+  
+  if (norm.includes("rain") || norm.includes("shower") || norm.includes("drizzle")) {
+    return (
+      <div className="relative" data-testid="weather-anim-rain">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#ffc879" strokeWidth="2" strokeLinecap="round">
+          <path d="M17 16.9a6 6 0 0 0 4-5.5 6 6 0 0 0-6-6 6 6 0 0 0-5.9 5" fill="rgba(255, 200, 121, 0.1)" />
+        </svg>
+        <div className="absolute bottom-1 left-3.5 flex gap-1.5">
+          <div className="w-[1.5px] h-1.5 bg-accent-amber rounded-full animate-bounce [animation-delay:0s] [animation-duration:1s]" />
+          <div className="w-[1.5px] h-1.5 bg-accent-amber rounded-full animate-bounce [animation-delay:0.3s] [animation-duration:1s]" />
+          <div className="w-[1.5px] h-1.5 bg-accent-amber rounded-full animate-bounce [animation-delay:0.6s] [animation-duration:1s]" />
+        </div>
+      </div>
+    );
+  }
+  
+  if (norm.includes("storm") || norm.includes("thunder")) {
+    return (
+      <div className="relative" data-testid="weather-anim-storm">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#ffc879" strokeWidth="2">
+          <path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 8.58" fill="rgba(255, 200, 121, 0.1)" />
+        </svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffc879" stroke="#ffc879" strokeWidth="1" className="absolute bottom-0.5 left-4.5 animate-pulse">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (norm.includes("cloud") || norm.includes("overcast")) {
+    return (
+      <div data-testid="weather-anim-cloud">
+        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#ffc879" strokeWidth="2" className="animate-pulse [animation-duration:4s]">
+          <path d="M17.5 19A3.5 3.5 0 0 0 21 15.5c0-2.79-2.54-4.5-5-4.5-.42 0-.83.07-1.22.2A5 5 0 0 0 5 13c0 2.2 1.8 4 4 4" fill="rgba(255, 200, 121, 0.1)" />
+        </svg>
+      </div>
+    );
+  }
+
+  // Sunny (Default)
+  return (
+    <div data-testid="weather-anim-sun">
+      <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#ffc879" strokeWidth="2" className="animate-spin [animation-duration:12s]" style={{ filter: "drop-shadow(0 0 4px rgba(255, 200, 121, 0.3))" }}>
+        <circle cx="12" cy="12" r="4" fill="rgba(255, 200, 121, 0.15)"/>
+        <line x1="12" y1="2" x2="12" y2="4" /><line x1="12" y1="20" x2="12" y2="22" />
+        <line x1="2" y1="12" x2="4" y2="12" /><line x1="20" y1="12" x2="22" y2="12" />
+        <line x1="4.93" y1="4.93" x2="6.34" y2="6.34" /><line x1="17.66" y1="17.66" x2="19.07" y2="19.07" />
+      </svg>
+    </div>
+  );
+}
+
+export function WeatherView({ data, state }: WidgetViewProps<WeatherData>) {
+  if (state !== "ready" || !data) return null;
+  const min = Math.min(...data.nextHours);
+  const max = Math.max(...data.nextHours);
+  const span = max - min || 1;
+  const barHeight = (t: number) => 8 + ((t - min) / span) * 92;
+
+  return (
+    <div className="flex flex-col gap-2 justify-between h-full">
+      <div className="flex justify-between items-center pr-2">
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold text-accent-amber">{data.tempC}°</span>
+            <span className="text-sm text-text-muted">{data.condition}</span>
+          </div>
+          <div className="text-xs text-text-muted mt-0.5">H{data.high}° L{data.low}°</div>
+        </div>
+        <WeatherIcon condition={data.condition} />
+      </div>
+      <div className="flex h-10 items-end gap-1">
+        {data.nextHours.map((t, i) => (
+          <div
+            key={i}
+            className="flex-1 rounded-sm bg-accent-amber"
+            style={{ height: `${barHeight(t)}%` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function useWeatherData(): WidgetDataResult<WeatherData> {
+  const [result, setResult] = useState<WidgetDataResult<WeatherData>>({
+    state: "loading",
+    data: null,
+  });
+  useEffect(() => {
+    let active = true;
+    fetchWeather(LAT, LON)
+      .then((d) => active && setResult({ state: "ready", data: d }))
+      .catch((e) => active && setResult({ state: "error", data: null, error: e instanceof Error ? e.message : String(e) }));
+    return () => { active = false; };
+  }, []);
+  return result;
+}
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npx vitest run src/widgets/Weather/WeatherWidget.test.tsx`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/widgets/Weather/WeatherWidget.tsx src/widgets/Weather/WeatherWidget.test.tsx
+git commit -m "feat: render dynamic animated weather SVG condition icons"
+```
+
+---
+
+### Task 5.4: Concentric Analog-Dominant Clock Widget (`ClockWidget`)
+
+**Files:**
+- Modify: `src/widgets/Clock/ClockWidget.tsx`
+- Modify: `src/widgets/Clock/ClockWidget.test.tsx`
+
+- [ ] **Step 1: Update clock tests**
+
+Update `src/widgets/Clock/ClockWidget.test.tsx` to check for concentric canvas clock face and 24-hour display components:
+```tsx
+  it("renders both the analog canvas and the 24-hour time digits", () => {
+    render(<ClockView data={{ time: "22:35", date: "Monday, May 31" }} state="ready" />);
+    expect(screen.getByTestId("analog-clock-canvas")).toBeInTheDocument();
+    expect(screen.getByText("22")).toBeInTheDocument();
+    expect(screen.getByText("35")).toBeInTheDocument();
+  });
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx vitest run src/widgets/Clock/ClockWidget.test.tsx`
+Expected: FAIL
+
+- [ ] **Step 3: Implement canvas concentric clock face in ClockView**
+
+Modify `src/widgets/Clock/ClockWidget.tsx` to render the split analog-digital 24-hour clock:
+```tsx
+import { useEffect, useState, useRef } from "react";
+import type { WidgetViewProps } from "../types";
+import type { WidgetDataResult } from "../../data/types";
+
+export interface ClockData { time: string; date: string; }
+
+function ConcentricClock() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animationId: number;
+
+    const drawClock = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const radius = 32;
+
+      // Faint background dot-matrix grid
+      ctx.fillStyle = "rgba(255, 200, 121, 0.04)";
+      const gridGap = 6;
+      for (let x = -7; x <= 7; x++) {
+        for (let y = -7; y <= 7; y++) {
+          const dx = x * gridGap;
+          const dy = y * gridGap;
+          if (dx * dx + dy * dy <= radius * radius) {
+            ctx.beginPath();
+            ctx.arc(cx + dx, cy + dy, 0.8, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      // Hour dots dial
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        ctx.fillStyle = "rgba(255, 200, 121, 0.7)";
+        ctx.beginPath();
+        const r = i % 3 === 0 ? 2 : 1;
+        ctx.arc(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const now = new Date();
+      const ms = now.getMilliseconds() / 1000;
+      const sec = now.getSeconds() + ms;
+      const min = now.getMinutes() + sec / 60;
+      const hr = now.getHours() + min / 60;
+
+      // Orbit progress function
+      const drawOrbit = (rad: number, value: number, total: number, color: string) => {
+        const dots = Math.floor(rad * 0.85);
+        const activeCount = Math.floor((value / total) * dots);
+
+        for (let i = 0; i < dots; i++) {
+          const angle = (i / dots) * Math.PI * 2 - Math.PI / 2;
+          const dx = cx + Math.cos(angle) * rad;
+          const dy = cy + Math.sin(angle) * rad;
+
+          if (i <= activeCount) {
+            ctx.fillStyle = color;
+          } else {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.06)";
+          }
+
+          ctx.beginPath();
+          ctx.arc(dx, dy, 1.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      };
+
+      // Seconds (Outer, Coral)
+      drawOrbit(32, sec, 60, "#ff8f7a");
+      // Minutes (Middle, Amber)
+      drawOrbit(24, min, 60, "#ffc879");
+      // Hours (Inner, Violet)
+      drawOrbit(16, hr % 12 || 12, 12, "#c2a6ff");
+
+      // Center Pin
+      ctx.fillStyle = "#ffc879";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      animationId = requestAnimationFrame(drawClock);
+    };
+
+    drawClock();
+    return () => cancelAnimationFrame(animationId);
+  }, []);
+
+  return (
+    <div className="w-[80px] h-[80px]">
+      <canvas
+        ref={canvasRef}
+        width="80"
+        height="80"
+        data-testid="analog-clock-canvas"
+        className="w-20 h-20 block"
+      />
+    </div>
+  );
+}
+
+export function ClockView({ data, state }: WidgetViewProps<ClockData>) {
+  if (state !== "ready" || !data) return null;
+  const parts = data.time.split(":");
+  const hrs = parts[0] || "00";
+  const mins = parts[1] || "00";
+
+  return (
+    <div className="flex h-full items-center justify-between gap-4 pr-1">
+      {/* Left: Concentric clock face */}
+      <ConcentricClock />
+      
+      {/* Right: Digital columns */}
+      <div className="flex flex-col justify-center flex-grow text-right pr-2">
+        <span className="text-[9px] font-bold text-accent-amber tracking-widest uppercase mb-1">LOCAL TIME</span>
+        <div className="text-3xl font-bold flex justify-end items-center text-text-bright leading-none font-mono">
+          <span>{hrs}</span>
+          <span className="animate-pulse text-accent-amber px-0.5">:</span>
+          <span>{mins}</span>
+        </div>
+        <span className="mt-1.5 text-xs text-text-muted">{data.date}</span>
+      </div>
+    </div>
+  );
+}
+
+export function useClockData(): WidgetDataResult<ClockData> {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return {
+    state: "ready",
+    data: {
+      time: `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`,
+      date: now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }),
+    },
+  };
+}
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npx vitest run src/widgets/Clock/ClockWidget.test.tsx`
+Expected: PASS
+
+- [ ] **Step 5: Run all tests to make sure no regressions**
+
+Run: `npm test`
+Expected: all tests pass.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/widgets/Clock/ClockWidget.tsx src/widgets/Clock/ClockWidget.test.tsx
+git commit -m "feat: replace ClockWidget time with split analog concentric rings and 24-hour blinking digital layout"
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage:**
@@ -2875,8 +3537,9 @@ git commit -m "feat: add slide-out CopilotSidebar conversation drawer"
 - §8 testing (contract, registry, sources, persistence, smoke renders) → throughout ✓
 - §9 walking skeleton first → Phase 1 builds Weather end-to-end before fan-out ✓
 - LUMIX AI Copilot & Briefings → Phase 4 (Tasks 4.1–4.4) ✓
+- Background Wave, Widget Frame, Weather SVGs, Concentric Clock → Phase 5 (Tasks 5.1–5.4) ✓
 
 **Placeholder scan:** No "TBD"/"handle edge cases"/"similar to" — each task has concrete code.
 
-**Type consistency:** All shared types and contract patterns (`WidgetDataResult<T>`, `WidgetViewProps<T>`) are followed exactly. The API integration client utilizes the model `deepseek/deepseek-v4-flash` as specified.
+**Type consistency:** All components adhere to React 19 rules, standard testing library syntax, and types defined in Phase 1 contract structures.
 
