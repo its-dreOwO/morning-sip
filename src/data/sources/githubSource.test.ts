@@ -34,4 +34,18 @@ describe("fetchGitHubActivity", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 403 }));
     await expect(fetchGitHubActivity("octocat")).rejects.toThrow(/rate limit/i);
   });
+
+  it("serves the second call from the 10-minute localStorage cache (fetch called once)", async () => {
+    const events = [
+      { type: "PushEvent", created_at: new Date().toISOString(), payload: { commits: [{}] } },
+    ];
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => events });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const first = await fetchGitHubActivity("octocat");
+    const second = await fetchGitHubActivity("octocat");
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(first).toEqual(second);
+  });
 });

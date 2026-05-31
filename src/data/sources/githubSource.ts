@@ -2,6 +2,12 @@
 // We cache responses for 10 minutes in localStorage to stay well under that.
 // To raise the limit later, send an "Authorization: Bearer <token>" header.
 
+interface GitHubEvent {
+  type: string;
+  created_at: string;
+  payload?: { commits?: unknown[] };
+}
+
 export interface GitHubData {
   totalCommits: number;
   perDay: { day: string; commits: number }[];
@@ -17,7 +23,7 @@ export async function fetchGitHubActivity(user: string): Promise<GitHubData> {
   const res = await fetch(`https://api.github.com/users/${user}/events/public?per_page=100`);
   if (res.status === 403) throw new Error("GitHub rate limit reached. Try again later.");
   if (!res.ok) throw new Error(`GitHub request failed: ${res.status}`);
-  const events: any[] = await res.json();
+  const events: GitHubEvent[] = await res.json();
 
   const days: { day: string; commits: number }[] = [];
   for (let i = 6; i >= 0; i--) {
