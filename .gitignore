@@ -1,1 +1,16 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# local env / secrets — never commit tokens
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+
+# editor / tooling
 .superpowers/
