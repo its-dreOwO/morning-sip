@@ -3,6 +3,7 @@ import { ClockView, useClockData } from "./Clock/ClockWidget";
 import { WeatherView, useWeatherData } from "./Weather/WeatherWidget";
 import { TodosView, useTodosData } from "./Todos/TodosWidget";
 import { GitHubView, useGitHubData } from "./GitHub/GitHubWidget";
+import { CalendarView, useCalendarData } from "./Calendar/CalendarWidget";
 
 export const registry: WidgetDefinition[] = [
   defineWidget({
@@ -40,5 +41,14 @@ export const registry: WidgetDefinition[] = [
     minSize: { w: 2, h: 2 },
     Component: GitHubView,
     useData: useGitHubData,
+  }),
+  defineWidget({
+    id: "calendar",
+    name: "Calendar",
+    accent: "violet",
+    defaultSize: { w: 2, h: 2 },
+    minSize: { w: 2, h: 2 },
+    Component: CalendarView,
+    useData: useCalendarData,
   }),
 ];
