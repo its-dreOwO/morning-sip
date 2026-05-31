@@ -1,4 +1,4 @@
-# AI Copilot & Summarizer Spec
+# LUMIX: AI Copilot & Summarizer Spec
 
 **Date:** 2026-05-31
 **Status:** Approved
@@ -82,7 +82,7 @@ interface DashboardDataContextType {
 ### 4.1. System Prompt Construction
 The system prompt injects all active widget data in a compact JSON format:
 ```
-You are the user's personal morning AI assistant. You are helping them analyze their dashboard.
+You are LUMIX, the user's personal morning AI assistant. You are helping them analyze their dashboard.
 Here is the current real-time data displayed on their dashboard widgets:
 [Widget Data JSON]
 
