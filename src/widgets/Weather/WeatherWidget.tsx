@@ -9,7 +9,12 @@ const LON = -0.1276;
 
 export function WeatherView({ data, state }: WidgetViewProps<WeatherData>) {
   if (state !== "ready" || !data) return null;
-  const max = Math.max(...data.nextHours, 1);
+  // Normalize to the visible range so sub-zero temps still produce valid bar
+  // heights. Floor at 8% so a flat range still renders something.
+  const min = Math.min(...data.nextHours);
+  const max = Math.max(...data.nextHours);
+  const span = max - min || 1;
+  const barHeight = (t: number) => 8 + ((t - min) / span) * 92;
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline gap-2">
@@ -22,7 +27,7 @@ export function WeatherView({ data, state }: WidgetViewProps<WeatherData>) {
           <div
             key={i}
             className="flex-1 rounded-sm bg-accent-amber"
-            style={{ height: `${(t / max) * 100}%` }}
+            style={{ height: `${barHeight(t)}%` }}
           />
         ))}
       </div>
@@ -39,7 +44,11 @@ export function useWeatherData(): WidgetDataResult<WeatherData> {
     let active = true;
     fetchWeather(LAT, LON)
       .then((d) => active && setResult({ state: "ready", data: d }))
-      .catch((e) => active && setResult({ state: "error", data: null, error: String(e) }));
+      .catch(
+        (e) =>
+          active &&
+          setResult({ state: "error", data: null, error: e instanceof Error ? e.message : String(e) })
+      );
     return () => {
       active = false;
     };
