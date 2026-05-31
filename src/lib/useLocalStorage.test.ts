@@ -16,4 +16,11 @@ describe("useLocalStorage", () => {
     expect(result.current[0]).toBe(10);
     expect(JSON.parse(localStorage.getItem("k")!)).toBe(10);
   });
+
+  it("supports functional updater form", () => {
+    const { result } = renderHook(() => useLocalStorage("k", 5));
+    act(() => result.current[1]((n) => n + 1));
+    expect(result.current[0]).toBe(6);
+    expect(JSON.parse(localStorage.getItem("k")!)).toBe(6);
+  });
 });

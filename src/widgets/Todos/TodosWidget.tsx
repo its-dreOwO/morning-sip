@@ -34,6 +34,6 @@ const SEED: TodoItem[] = [
 export function useTodosData(): WidgetDataResult<TodosData> {
   const [items, setItems] = useLocalStorage<TodoItem[]>("todos.items", SEED);
   const onToggle = (id: string) =>
-    setItems(items.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+    setItems((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
   return { state: "ready", data: { items, onToggle } };
 }
