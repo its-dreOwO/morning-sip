@@ -10,6 +10,10 @@
 
 **Source spec:** `docs/superpowers/specs/2026-05-31-morning-dashboard-design.md`
 
+**⚠️ Environment notes (discovered during execution):**
+- The installed `react-grid-layout` is **v2.x** (a rewrite). `GridLayout` takes `gridConfig={{ cols, rowHeight }}` and `dragConfig={{ handle }}` — NOT flat `cols`/`rowHeight`/`draggableHandle` props. The per-item type is `LayoutItem`; `Layout` is `readonly LayoutItem[]`. `onLayoutChange` gives a readonly `Layout`, so copy it (`[...l]`) before storing.
+- **`tsc --noEmit` is a no-op** in this project (root tsconfig uses project references). The real typecheck/build gate is **`npm run build`** (`tsc -b && vite build`). Use it, not `tsc --noEmit`.
+
 ---
 
 ## File Structure
