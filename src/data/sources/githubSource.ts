@@ -33,8 +33,10 @@ export async function fetchGitHubActivity(user: string): Promise<GitHubData> {
       (_, i) => sameDay(created, daysAgo(6 - i))
     );
     const n = e.payload?.commits?.length ?? 0;
-    if (idx >= 0) days[idx].commits += n;
-    total += n;
+    if (idx >= 0) {
+      days[idx].commits += n;
+      total += n;
+    }
   }
   const data: GitHubData = { totalCommits: total, perDay: days };
   writeCache(user, data);
