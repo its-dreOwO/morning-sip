@@ -11,7 +11,7 @@ export function GcpView({ data, state }: WidgetViewProps<GcpData>) {
   return (
     <div className="flex items-center gap-3">
       <div className="h-20 w-20">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 80, height: 80 }}>
           <PieChart>
             <Pie data={data.breakdown} dataKey="value" innerRadius={22} outerRadius={34} paddingAngle={2}>
               {data.breakdown.map((_, i) => (

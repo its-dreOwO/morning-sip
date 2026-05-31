@@ -13,7 +13,7 @@ export function GitHubView({ data, state }: WidgetViewProps<GitHubData>) {
       <span className="text-2xl font-bold text-accent-amber">{data.totalCommits}</span>
       <span className="text-xs text-text-muted">commits this week</span>
       <div className="h-12">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 240, height: 48 }}>
           <AreaChart data={data.perDay}>
             <Area type="monotone" dataKey="commits" stroke="#ffc879" fill="#ffc87955" strokeWidth={2} />
           </AreaChart>
