@@ -7,7 +7,7 @@ import { fetchContributions, type ContributionData } from "../../data/sources/co
 import { AnimatedNumber } from "../../components/AnimatedNumber";
 import { ContributionHeatmap } from "../../components/ContributionHeatmap";
 
-const GITHUB_USER = "octocat"; // change to your username
+const GITHUB_USER = "its-dreOwO"; // matches the contributions proxy in vite.config.ts
 
 export function GitHubView({ data, state, expanded }: WidgetViewProps<GitHubData>) {
   if (state !== "ready" || !data) return null;
