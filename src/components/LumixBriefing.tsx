@@ -11,19 +11,23 @@ interface Props {
 export function LumixBriefing({ apiKey }: Props) {
   const { widgetsData } = useDashboardData();
   const widgetsRef = useRef(widgetsData);
-  widgetsRef.current = widgetsData;
+  useEffect(() => {
+    widgetsRef.current = widgetsData;
+  });
 
   const [briefing, setBriefing] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!apiKey) return;
     let active = true;
-    setLoading(true);
-    setError("");
-    // Let widgets settle for a beat before snapshotting the dashboard.
+    // Let widgets settle for a beat before snapshotting the dashboard. State
+    // is only touched inside the async callback, never synchronously here.
     const timer = setTimeout(() => {
+      if (!active) return;
+      setLoading(true);
+      setError("");
       fetchLUMIXBriefing(apiKey, widgetsRef.current)
         .then((text) => active && setBriefing(text))
         .catch((e) => active && setError(e instanceof Error ? e.message : String(e)))

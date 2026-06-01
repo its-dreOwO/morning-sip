@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 import { DashboardDataProvider, DashboardDataContext, type WidgetDataState } from "./DashboardDataContext";
 
 function TestConsumer() {
@@ -33,9 +33,12 @@ describe("DashboardDataContext", () => {
   });
 
   it("keeps the stored entry reference stable when updated with equal content", () => {
-    let ctx: { widgetsData: Record<string, WidgetDataState>; updateWidgetData: (...a: never[]) => void } | null = null;
+    const holder: { ctx: { widgetsData: Record<string, WidgetDataState>; updateWidgetData: (...a: never[]) => void } | null } = { ctx: null };
     function Capture() {
-      ctx = useContext(DashboardDataContext) as never;
+      const value = useContext(DashboardDataContext);
+      useEffect(() => {
+        holder.ctx = value as never;
+      });
       return null;
     }
     render(
@@ -45,9 +48,9 @@ describe("DashboardDataContext", () => {
     );
     // A widget hook that returns a fresh data object each render must not churn
     // context state, or it loops forever.
-    act(() => ctx!.updateWidgetData("w" as never, "W" as never, "ready" as never, { a: 1 } as never));
-    const first = ctx!.widgetsData["w"];
-    act(() => ctx!.updateWidgetData("w" as never, "W" as never, "ready" as never, { a: 1 } as never));
-    expect(ctx!.widgetsData["w"]).toBe(first);
+    act(() => holder.ctx!.updateWidgetData("w" as never, "W" as never, "ready" as never, { a: 1 } as never));
+    const first = holder.ctx!.widgetsData["w"];
+    act(() => holder.ctx!.updateWidgetData("w" as never, "W" as never, "ready" as never, { a: 1 } as never));
+    expect(holder.ctx!.widgetsData["w"]).toBe(first);
   });
 });
