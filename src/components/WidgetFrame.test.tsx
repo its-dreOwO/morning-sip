@@ -17,4 +17,24 @@ describe("WidgetFrame", () => {
     render(<WidgetFrame title="Weather" accent="amber" state="ready">hello</WidgetFrame>);
     expect(screen.getByText("hello")).toBeInTheDocument();
   });
+
+  it("renders an uppercase bold title in the accent color", () => {
+    render(<WidgetFrame title="weather" accent="amber" state="ready">hello</WidgetFrame>);
+    const title = screen.getByText("weather");
+    expect(title).toHaveClass("text-accent-amber");
+    expect(title).toHaveClass("font-bold");
+    expect(title).toHaveClass("uppercase");
+  });
+
+  it("renders a dotted divider rule under the header", () => {
+    const { container } = render(<WidgetFrame title="Weather" accent="amber" state="ready">hello</WidgetFrame>);
+    expect(container.querySelector(".dotted-rule")).toBeInTheDocument();
+  });
+
+  it("keeps the content body neutral instead of inheriting the accent color", () => {
+    const { container } = render(<WidgetFrame title="Weather" accent="amber" state="ready">hello</WidgetFrame>);
+    const body = container.querySelector(".widget-content-body");
+    expect(body).toBeInTheDocument();
+    expect(body).not.toHaveClass("text-accent-amber");
+  });
 });

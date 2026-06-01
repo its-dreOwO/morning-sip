@@ -20,11 +20,24 @@ interface Props {
 
 export function WidgetFrame({ title, accent, state, error, children }: Props) {
   return (
-    <div className="flex h-full w-full flex-col gap-2 rounded-2xl border border-white/10 bg-card p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-widest text-text-muted">{title}</span>
+    <div className="flex h-full w-full flex-col gap-2 rounded-2xl border border-white/10 bg-card p-4 shadow-lg">
+      <div className="mb-2 flex flex-col gap-1.5 pb-1">
+        <div className="flex items-baseline justify-between">
+          <span className={`text-xs font-bold uppercase tracking-wider md:text-sm ${accentClass[accent]}`}>
+            {title}
+          </span>
+        </div>
+        {/* Dotted matrix divider — color comes from currentColor, set by the
+            accent text class, so the palette stays sourced from Tailwind only. */}
+        <div
+          className={`dotted-rule h-[2px] w-full opacity-40 ${accentClass[accent]}`}
+          style={{
+            background: "radial-gradient(circle, currentColor 0%, transparent 100%)",
+            backgroundSize: "6px 2px",
+          }}
+        />
       </div>
-      <div className={`flex-1 overflow-auto ${accentClass[accent]}`}>
+      <div className="widget-content-body flex-1 overflow-auto text-text-bright">
         {state === "loading" && <Skeleton />}
         {state === "error" && <p className="text-sm text-accent-coral">{error ?? "Something went wrong"}</p>}
         {state === "empty" && <p className="text-sm text-text-muted">Nothing here yet.</p>}
