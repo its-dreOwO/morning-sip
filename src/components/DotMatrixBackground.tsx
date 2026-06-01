@@ -5,8 +5,17 @@ interface Props {
   spacing: number;
 }
 
-// Full-viewport canvas of amber dots whose size/brightness undulate on layered
-// sine waves — the dashboard's ambient "dot matrix" backdrop.
+// Three dotted sine "waves" marching across the bottom of the viewport — the
+// dashboard's ambient sea backdrop. Each line is a row of amber dots traced
+// along a layered sine curve, rolling sideways at its own speed and amplitude,
+// with a gentle per-dot brightness shimmer. Spacing sets dot density; opacity
+// scales overall alpha.
+const WAVE_LINES = [
+  { baseH: 150, amp: 18, freq: 0.014, speed: 1.0, stepBump: 0, alpha: 0.85 },
+  { baseH: 95, amp: 26, freq: 0.020, speed: 1.5, stepBump: 2, alpha: 0.6 },
+  { baseH: 45, amp: 14, freq: 0.028, speed: 2.2, stepBump: 4, alpha: 0.4 },
+];
+
 export function DotMatrixBackground({ opacity, spacing }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -29,26 +38,29 @@ export function DotMatrixBackground({ opacity, spacing }: Props) {
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const cols = Math.floor(canvas.width / spacing) + 1;
-      const rows = Math.floor(canvas.height / spacing) + 1;
-      ctx.shadowBlur = 3;
+      const { width: w, height: h } = canvas;
+      ctx.shadowBlur = 4;
       ctx.shadowColor = "#ffc879";
 
-      for (let x = 0; x < cols; x++) {
-        for (let y = 0; y < rows; y++) {
-          const w1 = Math.sin(x * 0.12 + count);
-          const w2 = Math.cos(y * 0.15 - count * 0.75);
-          const w3 = Math.sin(x * 0.08 - y * 0.08 + count * 1.2);
-          const wave = (w1 + w2 + w3) / 3;
-          const size = 0.8 + wave * 0.5;
-          const dotOpacity = (0.1 + (wave + 1) * 0.25) * opacity;
-          ctx.fillStyle = `rgba(255, 200, 121, ${dotOpacity})`;
+      for (const line of WAVE_LINES) {
+        const step = spacing + line.stepBump;
+        const phase = count * line.speed;
+        for (let x = 0; x <= w; x += step) {
+          // Layered sines give the surface an irregular, sea-like roll rather
+          // than a single clean wave; baseH anchors it above the bottom edge.
+          const y =
+            h -
+            line.baseH -
+            Math.sin(x * line.freq + phase) * line.amp -
+            Math.sin(x * line.freq * 0.5 - phase * 1.3) * line.amp * 0.5;
+          const pulse = 0.6 + 0.4 * Math.sin(x * 0.05 + phase * 2);
+          ctx.fillStyle = `rgba(255, 200, 121, ${line.alpha * pulse * opacity})`;
           ctx.beginPath();
-          ctx.arc(x * spacing, y * spacing, Math.max(size, 0.1), 0, Math.PI * 2);
+          ctx.arc(x, y, 2.1, 0, Math.PI * 2);
           ctx.fill();
         }
       }
-      count += 0.025;
+      count += 0.022;
       if (!reduceMotion) animationId = requestAnimationFrame(draw);
     };
     draw();
