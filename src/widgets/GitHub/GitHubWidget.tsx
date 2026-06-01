@@ -3,6 +3,7 @@ import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import type { WidgetViewProps } from "../types";
 import type { WidgetDataResult } from "../../data/types";
 import { fetchGitHubActivity, type GitHubData } from "../../data/sources/githubSource";
+import { AnimatedNumber } from "../../components/AnimatedNumber";
 
 const GITHUB_USER = "octocat"; // change to your username
 
@@ -10,7 +11,9 @@ export function GitHubView({ data, state }: WidgetViewProps<GitHubData>) {
   if (state !== "ready" || !data) return null;
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-2xl font-bold text-accent-amber">{data.totalCommits}</span>
+      <span className="text-2xl font-bold text-accent-amber">
+        <AnimatedNumber value={data.totalCommits} />
+      </span>
       <span className="text-xs text-text-muted">commits this week</span>
       <div className="h-12">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 240, height: 48 }}>

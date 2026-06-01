@@ -2,6 +2,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import type { WidgetViewProps } from "../types";
 import type { WidgetDataResult } from "../../data/types";
 import { getMockGcp, type GcpData } from "../../data/sources/gcpSource";
+import { AnimatedNumber } from "../../components/AnimatedNumber";
 
 const COLORS = ["#5fe0c8", "#c2a6ff", "#ffc879"];
 
@@ -22,7 +23,9 @@ export function GcpView({ data, state }: WidgetViewProps<GcpData>) {
         </ResponsiveContainer>
       </div>
       <div className="flex flex-col">
-        <span className="text-xl font-bold text-accent-teal">${data.spend}</span>
+        <span className="text-xl font-bold text-accent-teal">
+          <AnimatedNumber value={data.spend} prefix="$" />
+        </span>
         <span className="text-xs text-text-muted">{pct}% of ${data.budget}</span>
       </div>
     </div>
