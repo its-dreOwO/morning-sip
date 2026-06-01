@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { WidgetFrame } from "./WidgetFrame";
 
 describe("WidgetFrame", () => {
@@ -36,5 +37,17 @@ describe("WidgetFrame", () => {
     const body = container.querySelector(".widget-content-body");
     expect(body).toBeInTheDocument();
     expect(body).not.toHaveClass("text-accent-amber");
+  });
+
+  it("renders an expand button that calls onExpand when provided", async () => {
+    const onExpand = vi.fn();
+    render(<WidgetFrame title="Weather" accent="amber" state="ready" onExpand={onExpand}>hello</WidgetFrame>);
+    await userEvent.click(screen.getByRole("button", { name: /expand/i }));
+    expect(onExpand).toHaveBeenCalled();
+  });
+
+  it("omits the expand button when onExpand is not provided", () => {
+    render(<WidgetFrame title="Weather" accent="amber" state="ready">hello</WidgetFrame>);
+    expect(screen.queryByRole("button", { name: /expand/i })).not.toBeInTheDocument();
   });
 });
