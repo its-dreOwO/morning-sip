@@ -2,21 +2,33 @@ import { useEffect, useState } from "react";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import type { WidgetViewProps } from "../types";
 import type { WidgetDataResult } from "../../data/types";
-import { fetchGitHubActivity, type GitHubData } from "../../data/sources/githubSource";
-import { fetchContributions, type ContributionData } from "../../data/sources/contributionsSource";
+import {
+  fetchContributions,
+  type ContributionDay,
+} from "../../data/sources/contributionsSource";
 import { AnimatedNumber } from "../../components/AnimatedNumber";
 import { ContributionHeatmap } from "../../components/ContributionHeatmap";
 
-const GITHUB_USER = "its-dreOwO"; // matches the contributions proxy in vite.config.ts
+// The whole widget is driven by the authenticated contribution calendar (same
+// source as the heatmap), so the weekly number and sparkline include private
+// repos and stay consistent with the year view. The unauthenticated public
+// events API was dropped: its payload is stripped of commit counts, so it could
+// only ever report 0.
+export interface GitHubData {
+  weekTotal: number;
+  perDay: { day: string; commits: number }[];
+  weeks: ContributionDay[][];
+  yearTotal: number;
+}
 
-export function GitHubView({ data, state, expanded }: WidgetViewProps<GitHubData>) {
+export function GitHubView({ data, state }: WidgetViewProps<GitHubData>) {
   if (state !== "ready" || !data) return null;
   return (
     <div className="flex flex-col gap-1">
       <span className="text-2xl font-bold text-accent-amber">
-        <AnimatedNumber value={data.totalCommits} />
+        <AnimatedNumber value={data.weekTotal} />
       </span>
-      <span className="text-xs text-text-muted">commits this week</span>
+      <span className="text-xs text-text-muted">contributions this week</span>
       <div className="h-12">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 240, height: 48 }}>
           <AreaChart data={data.perDay}>
@@ -24,47 +36,32 @@ export function GitHubView({ data, state, expanded }: WidgetViewProps<GitHubData
           </AreaChart>
         </ResponsiveContainer>
       </div>
-      {expanded && (
-        <div className="mt-4">
-          <GitHubContributions />
-        </div>
-      )}
+      <div className="mt-4">
+        <ContributionHeatmap weeks={data.weeks} total={data.yearTotal} />
+      </div>
     </div>
   );
-}
-
-// Mounted only in the expanded overlay, so the authenticated calendar is
-// fetched lazily — never on a collapsed widget's initial render.
-function GitHubContributions() {
-  const result = useContributionsData();
-  if (result.state === "loading") return <p className="text-xs text-text-muted">Loading contributions…</p>;
-  if (result.state === "error") return <p className="text-xs text-accent-coral">{result.error}</p>;
-  if (!result.data) return null;
-  return <ContributionHeatmap weeks={result.data.weeks} total={result.data.totalContributions} />;
-}
-
-function useContributionsData(): WidgetDataResult<ContributionData> {
-  const [result, setResult] = useState<WidgetDataResult<ContributionData>>({ state: "loading", data: null });
-  useEffect(() => {
-    let active = true;
-    fetchContributions()
-      .then((d) => active && setResult({ state: "ready", data: d }))
-      .catch(
-        (e) =>
-          active &&
-          setResult({ state: "error", data: null, error: e instanceof Error ? e.message : String(e) })
-      );
-    return () => { active = false; };
-  }, []);
-  return result;
 }
 
 export function useGitHubData(): WidgetDataResult<GitHubData> {
   const [result, setResult] = useState<WidgetDataResult<GitHubData>>({ state: "loading", data: null });
   useEffect(() => {
     let active = true;
-    fetchGitHubActivity(GITHUB_USER)
-      .then((d) => active && setResult({ state: "ready", data: d }))
+    fetchContributions()
+      .then((cal) => {
+        if (!active) return;
+        const days = cal.weeks.flatMap((w) => w);
+        const last7 = days.slice(-7);
+        const perDay = last7.map((d) => ({
+          day: new Date(d.date).toLocaleDateString(undefined, { weekday: "short" }),
+          commits: d.count,
+        }));
+        const weekTotal = last7.reduce((sum, d) => sum + d.count, 0);
+        setResult({
+          state: "ready",
+          data: { weekTotal, perDay, weeks: cal.weeks, yearTotal: cal.totalContributions },
+        });
+      })
       .catch(
         (e) =>
           active &&

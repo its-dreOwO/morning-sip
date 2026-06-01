@@ -29,7 +29,7 @@ export const registry: WidgetDefinition[] = [
     id: "github",
     name: "GitHub",
     accent: "amber",
-    defaultSize: { w: 2, h: 2 },
+    defaultSize: { w: 4, h: 3 },
     minSize: { w: 2, h: 2 },
     Component: GitHubView,
     useData: useGitHubData,
