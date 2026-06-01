@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { ApiKeyPopover } from "./ApiKeyPopover";
+import { LumixBriefing } from "./LumixBriefing";
 
 function greetingFor(hour: number): string {
   if (hour < 12) return "Good morning";
@@ -6,7 +8,14 @@ function greetingFor(hour: number): string {
   return "Good night";
 }
 
-export function DashboardHeader() {
+interface Props {
+  apiKey?: string;
+  onSaveKey?: (key: string) => void;
+  onClearKey?: () => void;
+  onOpenChat?: () => void;
+}
+
+export function DashboardHeader({ apiKey, onSaveKey, onClearKey, onOpenChat }: Props = {}) {
   const [time, setTime] = useState(() => new Date());
 
   useEffect(() => {
@@ -82,17 +91,29 @@ export function DashboardHeader() {
         </div>
       </div>
 
-      {/* Column 3: LUMIX AI briefing slot (placeholder copy) */}
+      {/* Column 3: LUMIX AI briefing slot */}
       <div className="z-10 flex w-full max-w-[320px] flex-col justify-self-end rounded-xl border border-white/5 bg-white/5 p-3.5 text-xs text-text-muted">
         <div className="mb-1.5 flex items-center justify-between font-bold uppercase tracking-widest text-accent-teal">
           <span>🤖 LUMIX Briefing</span>
-          <button className="rounded-md border border-accent-amber/20 bg-accent-amber/15 px-2 py-0.5 text-[10px] text-accent-amber transition hover:bg-accent-amber/25">
-            Open Chat
-          </button>
+          <div className="flex items-center gap-2">
+            {onSaveKey && (
+              <ApiKeyPopover apiKey={apiKey ?? ""} onSave={onSaveKey} onClear={onClearKey ?? (() => {})} />
+            )}
+            <button
+              onClick={() => onOpenChat?.()}
+              className="rounded-md border border-accent-amber/20 bg-accent-amber/15 px-2 py-0.5 text-[10px] text-accent-amber transition hover:bg-accent-amber/25"
+            >
+              Open Chat
+            </button>
+          </div>
         </div>
-        <p className="leading-relaxed">
-          Dashboard data is ready — <strong className="text-accent-amber">3 tasks</strong> pending and weather is partly cloudy.
-        </p>
+        {apiKey ? (
+          <LumixBriefing apiKey={apiKey} />
+        ) : (
+          <p className="leading-relaxed">
+            Add your OpenRouter key <span className="text-text-bright">(⚙)</span> to activate LUMIX briefings, or open chat to ask anything.
+          </p>
+        )}
       </div>
     </div>
   );
