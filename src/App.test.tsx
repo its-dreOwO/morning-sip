@@ -11,7 +11,7 @@ beforeEach(() => {
 describe("App", () => {
   it("mounts the dashboard shell without throwing and shows the greeting", () => {
     render(<App />);
-    expect(screen.getByText(/, Dre/)).toBeInTheDocument();
+    expect(screen.getByText("Dre")).toBeInTheDocument();
   });
 
   it("renders the registered widget frames", () => {
