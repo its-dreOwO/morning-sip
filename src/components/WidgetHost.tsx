@@ -1,13 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import type { WidgetDefinition } from "../widgets/types";
 import { WidgetFrame } from "./WidgetFrame";
 import { ExpandOverlay } from "./ExpandOverlay";
+import { useDashboardData } from "../context/DashboardDataContext";
 
 export function WidgetHost({ def, onRemove }: { def: WidgetDefinition; onRemove?: () => void }) {
   const result = def.useData();
   const Component = def.Component;
   const [expanded, setExpanded] = useState(false);
+  const { updateWidgetData } = useDashboardData();
+
+  useEffect(() => {
+    updateWidgetData(def.id, def.name, result.state, result.data, result.error);
+  }, [def.id, def.name, result.state, result.data, result.error, updateWidgetData]);
   return (
     <>
       <WidgetFrame
