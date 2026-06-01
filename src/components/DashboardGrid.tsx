@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { motion } from "framer-motion";
 import GridLayout, { type Layout, type LayoutItem } from "react-grid-layout";
 import { registry } from "../widgets/registry";
 import { useLocalStorage } from "../lib/useLocalStorage";
@@ -83,9 +84,15 @@ export function DashboardGrid() {
     >
       {visible.map((w) => (
         <div key={w.id}>
-          <div className="drag-handle h-full w-full cursor-move">
+          <motion.div
+            className="drag-handle h-full w-full cursor-move"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ scale: 1.01 }}
+            transition={{ duration: 0.25 }}
+          >
             <WidgetHost def={w} />
-          </div>
+          </motion.div>
         </div>
       ))}
     </GridLayout>
