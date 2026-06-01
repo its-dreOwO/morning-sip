@@ -38,4 +38,11 @@ describe("reconcileLayout", () => {
     const result = reconcileLayout([orphan]);
     expect(result.some((l) => l.i === "ghost-widget")).toBe(false);
   });
+
+  it("does not re-add a dismissed widget that is missing from the stored layout", () => {
+    const result = reconcileLayout([], ["mail"]);
+    expect(result.some((l) => l.i === "mail")).toBe(false);
+    // other registry widgets are still added
+    expect(result.some((l) => l.i === "weather")).toBe(true);
+  });
 });

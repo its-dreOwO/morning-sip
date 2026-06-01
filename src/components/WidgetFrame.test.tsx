@@ -50,4 +50,11 @@ describe("WidgetFrame", () => {
     render(<WidgetFrame title="Weather" accent="amber" state="ready">hello</WidgetFrame>);
     expect(screen.queryByRole("button", { name: /expand/i })).not.toBeInTheDocument();
   });
+
+  it("renders a remove button that calls onRemove when provided", async () => {
+    const onRemove = vi.fn();
+    render(<WidgetFrame title="Weather" accent="amber" state="ready" onRemove={onRemove}>hello</WidgetFrame>);
+    await userEvent.click(screen.getByRole("button", { name: /remove/i }));
+    expect(onRemove).toHaveBeenCalled();
+  });
 });

@@ -4,6 +4,7 @@ import GridLayout, { type Layout, type LayoutItem } from "react-grid-layout";
 import { registry } from "../widgets/registry";
 import { useLocalStorage } from "../lib/useLocalStorage";
 import { WidgetHost } from "./WidgetHost";
+import { AddWidgetMenu } from "./AddWidgetMenu";
 
 const COLS = 6;
 const ROW_HEIGHT = 90;
@@ -39,18 +40,20 @@ export function defaultLayout(): LayoutItem[] {
 /**
  * Drops layout entries whose widget no longer exists in the registry, and
  * appends a default entry (stacked at the bottom) for any registry widget the
- * stored layout doesn't yet include. Keeps a persisted layout in sync as the
- * registry grows. Pure and order-stable for a given input.
+ * stored layout doesn't yet include — except widgets the user has explicitly
+ * dismissed, which stay hidden until re-added. Keeps a persisted layout in
+ * sync as the registry grows. Pure and order-stable for a given input.
  */
-export function reconcileLayout(stored: LayoutItem[]): LayoutItem[] {
+export function reconcileLayout(stored: LayoutItem[], dismissed: string[] = []): LayoutItem[] {
   const known = new Set(registry.map((w) => w.id));
+  const skip = new Set(dismissed);
   const kept = stored.filter((l) => known.has(l.i));
   const present = new Set(kept.map((l) => l.i));
   let nextY = kept.reduce((m, l) => Math.max(m, l.y + l.h), 0);
 
   const added: LayoutItem[] = [];
   for (const w of registry) {
-    if (present.has(w.id)) continue;
+    if (present.has(w.id) || skip.has(w.id)) continue;
     added.push(layoutItemFor(w.id, 0, nextY));
     nextY += w.defaultSize.h;
   }
@@ -63,7 +66,8 @@ function sameLayout(a: LayoutItem[], b: LayoutItem[]): boolean {
 
 export function DashboardGrid() {
   const [layout, setLayout] = useLocalStorage<LayoutItem[]>("dashboard.layout", defaultLayout());
-  const reconciled = reconcileLayout(layout);
+  const [dismissed, setDismissed] = useLocalStorage<string[]>("dashboard.dismissed", []);
+  const reconciled = reconcileLayout(layout, dismissed);
 
   // Persist reconciliation if it added/removed widgets (e.g. registry grew).
   useEffect(() => {
@@ -72,29 +76,58 @@ export function DashboardGrid() {
   }, []);
 
   const visible = registry.filter((w) => reconciled.some((l) => l.i === w.id));
+  const hiddenIds = registry.filter((w) => !reconciled.some((l) => l.i === w.id)).map((w) => w.id);
+
+  const addWidget = (id: string) => {
+    const def = registry.find((w) => w.id === id);
+    if (!def || reconciled.some((l) => l.i === id)) return;
+    setDismissed(dismissed.filter((d) => d !== id));
+    setLayout([
+      ...reconciled,
+      {
+        i: id,
+        x: 0,
+        y: Infinity, // RGL drops it at the bottom
+        w: def.defaultSize.w,
+        h: def.defaultSize.h,
+        minW: def.minSize.w,
+        minH: def.minSize.h,
+      },
+    ]);
+  };
+
+  const removeWidget = (id: string) => {
+    setLayout(reconciled.filter((l) => l.i !== id));
+    setDismissed(dismissed.includes(id) ? dismissed : [...dismissed, id]);
+  };
 
   return (
-    <GridLayout
-      className="layout"
-      layout={reconciled}
-      width={WIDTH}
-      gridConfig={{ cols: COLS, rowHeight: ROW_HEIGHT }}
-      dragConfig={{ handle: ".drag-handle" }}
-      onLayoutChange={(l: Layout) => setLayout([...l])}
-    >
-      {visible.map((w) => (
-        <div key={w.id}>
-          <motion.div
-            className="drag-handle h-full w-full cursor-move"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ scale: 1.01 }}
-            transition={{ duration: 0.25 }}
-          >
-            <WidgetHost def={w} />
-          </motion.div>
-        </div>
-      ))}
-    </GridLayout>
+    <div className="flex flex-col gap-3">
+      <div className="flex justify-end">
+        <AddWidgetMenu hiddenIds={hiddenIds} onAdd={addWidget} />
+      </div>
+      <GridLayout
+        className="layout"
+        layout={reconciled}
+        width={WIDTH}
+        gridConfig={{ cols: COLS, rowHeight: ROW_HEIGHT }}
+        dragConfig={{ handle: ".drag-handle" }}
+        onLayoutChange={(l: Layout) => setLayout([...l])}
+      >
+        {visible.map((w) => (
+          <div key={w.id}>
+            <motion.div
+              className="drag-handle h-full w-full cursor-move"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ scale: 1.01 }}
+              transition={{ duration: 0.25 }}
+            >
+              <WidgetHost def={w} onRemove={() => removeWidget(w.id)} />
+            </motion.div>
+          </div>
+        ))}
+      </GridLayout>
+    </div>
   );
 }

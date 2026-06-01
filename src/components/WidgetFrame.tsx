@@ -16,10 +16,11 @@ interface Props {
   state: WidgetState;
   error?: string;
   onExpand?: () => void;
+  onRemove?: () => void;
   children: ReactNode;
 }
 
-export function WidgetFrame({ title, accent, state, error, onExpand, children }: Props) {
+export function WidgetFrame({ title, accent, state, error, onExpand, onRemove, children }: Props) {
   return (
     <div className="flex h-full w-full flex-col gap-2 rounded-2xl border border-white/10 bg-card p-4 shadow-lg">
       <div className="mb-2 flex flex-col gap-1.5 pb-1">
@@ -27,15 +28,26 @@ export function WidgetFrame({ title, accent, state, error, onExpand, children }:
           <span className={`text-xs font-bold uppercase tracking-wider md:text-sm ${accentClass[accent]}`}>
             {title}
           </span>
-          {onExpand && (
-            <button
-              onClick={onExpand}
-              aria-label="Expand"
-              className="text-xs text-text-muted transition hover:text-text-bright"
-            >
-              ⤢
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {onExpand && (
+              <button
+                onClick={onExpand}
+                aria-label="Expand"
+                className="text-xs text-text-muted transition hover:text-text-bright"
+              >
+                ⤢
+              </button>
+            )}
+            {onRemove && (
+              <button
+                onClick={onRemove}
+                aria-label="Remove"
+                className="text-xs text-text-muted transition hover:text-accent-coral"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
         {/* Dotted matrix divider — color comes from currentColor, set by the
             accent text class, so the palette stays sourced from Tailwind only. */}
